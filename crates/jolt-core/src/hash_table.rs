@@ -20,6 +20,7 @@ use std::marker::PhantomData;
 
 use crate::hash_combine::JoltHash;
 use crate::math::bvec16::BVec16;
+use crate::math::{count_leading_zeros, count_trailing_zeros, get_next_power_of_2};
 
 /// Hash function used by a [`HashTable`] (C++ `Hash` template parameter, a 64-bit hash functor).
 pub trait KeyHasher<K: ?Sized> {
@@ -258,11 +259,12 @@ impl<K, KV, D, H> HashTable<K, KV, D, H> {
         // a probe looking for some element needs to continue probing so we cannot mark the bucket as empty
         // but must mark it as deleted instead.
         // Note that we use: CountLeadingZeros(uint16) = CountLeadingZeros(uint32) - 16.
-        let control_value = if control_empty_before.leading_zeros() - 16 + control_empty_after.trailing_zeros() < 16 {
-            BUCKET_EMPTY
-        } else {
-            BUCKET_DELETED
-        };
+        let control_value =
+            if count_leading_zeros(control_empty_before) - 16 + count_trailing_zeros(control_empty_after) < 16 {
+                BUCKET_EMPTY
+            } else {
+                BUCKET_DELETED
+            };
 
         // Mark the bucket as empty/deleted
         self.set_control_value(index, control_value);
@@ -380,7 +382,7 @@ where
                     // Check if any buckets have been deleted, if so store the first one
                     let control_deleted = BVec16::equals(control_bytes, bucket_deleted).trues() as u32;
                     if control_deleted != 0 {
-                        first_deleted_index = index + control_deleted.trailing_zeros();
+                        first_deleted_index = index + count_trailing_zeros(control_deleted);
                     }
                 }
             }
@@ -392,7 +394,7 @@ where
                 // It doesn't matter if it is before or after the first empty bucket we found
                 // since we will always be scanning in batches of 16 buckets.
                 if first_deleted_index == NO_DELETED || INSERT_AFTER_GROW {
-                    index += control_empty.trailing_zeros();
+                    index += count_trailing_zeros(control_empty);
                     self.load_left -= 1; // Using an empty bucket decreases the load left
                 } else {
                     index = first_deleted_index;
@@ -426,7 +428,7 @@ where
         // Loop while there's still buckets to process
         while control_equal != 0 {
             // Get the first equal bucket
-            let first_equal = control_equal.trailing_zeros();
+            let first_equal = count_trailing_zeros(control_equal);
 
             // Skip to the bucket
             local_index += first_equal;
@@ -450,9 +452,9 @@ where
     /// Reserve memory for a certain number of elements
     pub fn reserve(&mut self, max_size: SizeType) {
         // Calculate max size based on load factor
-        let max_size = (((MAX_LOAD_FACTOR_DENOMINATOR * max_size as u64) / MAX_LOAD_FACTOR_NUMERATOR) as SizeType)
-            .max(16)
-            .next_power_of_two();
+        let max_size = get_next_power_of_2(
+            (((MAX_LOAD_FACTOR_DENOMINATOR * max_size as u64) / MAX_LOAD_FACTOR_NUMERATOR) as SizeType).max(16),
+        );
         if max_size <= self.max_size {
             return;
         }
@@ -572,7 +574,7 @@ where
                         let control_free = (BVec16::and(control_bytes, bucket_used).trues() as u32) ^ 0xffff;
                         if control_free != 0 {
                             // Select this bucket as destination
-                            dst += control_free.trailing_zeros();
+                            dst += count_trailing_zeros(control_free);
                             dst &= bucket_mask;
                             break;
                         }
