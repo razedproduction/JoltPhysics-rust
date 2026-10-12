@@ -101,6 +101,18 @@ Types keep their C++ names (`Vec3`, `BodyID`, `PhysicsSystem`), except enums, wh
 | `StringToVector(s, out, delim, clear)` / `VectorToString(v, out, delim)` | `string_to_vector(s, delim) -> Vec<String>` / `vector_to_string(v, delim) -> String` |
 | `Result<T>` | `jolt_core::Result<T>` = `std::result::Result<T, JoltError>`; empty state = `Option<Result<T>>` |
 | `JPH_SCOPE_EXIT(f)` | `scope_exit!(f)` |
+| `InsertionSort(b, e[, cmp])`, `QuickSort(b, e[, cmp])` | `insertion_sort(&mut [T])` / `insertion_sort_by(&mut [T], less)`, `quick_sort` / `quick_sort_by` (`less(a, b) -> bool`, not `Ordering`) |
+| `BinaryHeapPush(b, e, pred)` / `BinaryHeapPop(b, e, pred)` | `binary_heap_push(&mut [T], pred)` / `binary_heap_pop(&mut [T], pred)` |
+| `HashTable` / `UnorderedMap` / `UnorderedSet` template params `Hash`, `KeyEqual` | trait `KeyHasher<K>` (default `JoltHasher` = `JoltHash`), always `PartialEq`; `UnorderedMap<K, V, H>` / `UnorderedSet<K, H>` are type aliases of `HashTable` |
+| `HashTable::size()` / `empty()` / `ClearAndKeepMemory()` | `len()` / `is_empty()` / `clear_and_keep_memory()` |
+| `HashTable::find(k)` returning an iterator, `erase(iterator)` | `find(&k) -> Option<&KV>`, `find_mut`, `find_index(&k) -> Option<u32>` (the iterator's bucket index) + `get_at(i)`, `erase_at(i)`; `erase(&k) -> u32` |
+| `HashTable::insert(v)` -> `pair<iterator, bool>` | `insert(v) -> (&mut KV, bool)` |
+| `begin()`/`end()` iteration | `iter()` / `iter_mut()` (bucket order) |
+| `UnorderedMap::operator [](k)` / `try_emplace(k, args...)` | `get_or_insert_default(k) -> &mut V` / `try_emplace(k, v) -> (&mut (K, V), bool)`; extra `get` / `get_mut` |
+| `StaticArray<T, N>::push_back` / `emplace_back` / `pop_back` / `erase(it)` / `erase(b, e)` / `GetHash()` | `push` / `push` / `pop() -> Option<T>` / `erase(index)` / `erase_range(range)` / `JoltHash` |
+| `BVec16::sLoadByte16`, `sEquals`, `GetTrues()` | `BVec16::load_byte16(&[u8])`, `equals`, `trues()` |
+| `LinearCurve::GetValue(x)` / `GetMinX()` / `mPoints` | `value(x)` / `min_x()` / `points` (`LinearCurve::Point` is `linear_curve::Point`) |
+| `UnitTestRandom` (`std::mt19937`) | `jolt_test_utils::UnitTestRandom` (`next_u32()`, `shuffle()`) |
 
 ## 4. Slices and status
 
@@ -111,7 +123,7 @@ Leaves first; each slice = Rust code + its ported tests, green before moving on.
 | # | Slice | C++ sources | Depends on | Tests | Ported | Diff-tested | Notes |
 |---|---|---|---|---|---|---|---|
 | 1 | Core basics: `HashCombine`, `Color`, `StringTools`, `Result`, `NonCopyable`, `ScopeExit` | Core/* | — | ☑ | ☑ | ☐ | 14/14 tests. `NonCopyable` N/A (Rust moves); `Color::to_vec4` deferred to slice 4 |
-| 2 | Sorting & containers: `InsertionSort`, `QuickSort`, `BinaryHeap`, `StaticArray`, `HashTable`, `UnorderedMap/Set`, `LinearCurve` | Core/* | 1 | ☐ | ☐ | ☐ | `ArrayTest`/`STLLocalAllocatorTest` mostly N/A (Vec) |
+| 2 | Sorting & containers: `InsertionSort`, `QuickSort`, `BinaryHeap`, `StaticArray`, `HashTable`, `UnorderedMap/Set`, `LinearCurve` | Core/* | 1 | ☑ | ☑ | ☐ | 27/27 tests. Scalar `BVec16` subset (`math::bvec16`) pulled forward for `HashTable`, rest in slice 4; `StaticArray` over `arrayvec`; `LinearCurve` binary state waits for slice 11. `ArrayTest`/`STLLocalAllocatorTest` N/A (Vec) |
 | 3 | Math scalar: `Math.h`, `HalfFloat`, `Float2/3/4`, `Double3`, `Trigonometry`, `FindRoot` | Math/* | 1 | ☐ | ☐ | ☐ | |
 | 4 | Vectors: `Vec3`, `Vec4`, `UVec4`, `BVec16`, `DVec3`, `Swizzle` | Math/* | 3 | ☐ | ☐ | ☐ | W = Z invariant in `Vec3` |
 | 5 | Matrices: `Mat44`, `DMat44`, `Quat`, `Matrix`, `Vector`, `DynMatrix`, `GaussianElimination`, `EigenValueSymmetric`, `Real` | Math/* | 4 | ☐ | ☐ | ☐ | **M1** |
