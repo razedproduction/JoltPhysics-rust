@@ -1,0 +1,44 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+authors = ["Jorrit Rouwe (original C++ Jolt Physics)", "JoltPhysics-rust contributors"]
+repository = "https://github.com/razedproduction/JoltPhysics-rust"
+
+[workspace.dependencies]
+jolt-core = { path = "crates/jolt-core" }
+jolt-geometry = { path = "crates/jolt-geometry" }
+jolt-physics = { path = "crates/jolt-physics" }
+jolt-test-utils = { path = "crates/jolt-test-utils" }
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+# Physics code is full of short math names (x, y, a, b, n) and many-argument functions mirroring the C++ API.
+many_single_char_names = "allow"
+too_many_arguments = "allow"
+excessive_precision = "allow"
+
+# Physics tests are painfully slow at opt-level 0; keep debug assertions and overflow checks.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+debug = "line-tables-only"
+
+[profile.bench]
+inherits = "release"

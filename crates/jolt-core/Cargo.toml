@@ -1,0 +1,26 @@
+[package]
+name = "jolt-core"
+description = "Core utilities and math for the Rust port of Jolt Physics (Jolt/Core, Jolt/Math)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+# JPH_DOUBLE_PRECISION: Real = f64, RVec3 = DVec3, RMat44 = DMat44
+double-precision = []
+# JPH_CROSS_PLATFORM_DETERMINISTIC: avoid FMA and platform-dependent intrinsics
+cross-platform-deterministic = []
+# JPH_PROFILE_ENABLED
+profiler = []
+
+[dependencies]
+
+[dev-dependencies]
+jolt-test-utils.workspace = true
+
+[lints]
+workspace = true

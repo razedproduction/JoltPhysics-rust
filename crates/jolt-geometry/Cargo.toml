@@ -1,0 +1,23 @@
+[package]
+name = "jolt-geometry"
+description = "Geometry, AABB trees and triangle splitting for the Rust port of Jolt Physics (Jolt/Geometry, Jolt/AABBTree, Jolt/TriangleSplitter)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+double-precision = ["jolt-core/double-precision"]
+cross-platform-deterministic = ["jolt-core/cross-platform-deterministic"]
+
+[dependencies]
+jolt-core.workspace = true
+
+[dev-dependencies]
+jolt-test-utils.workspace = true
+
+[lints]
+workspace = true

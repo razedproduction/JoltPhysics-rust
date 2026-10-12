@@ -1,0 +1,27 @@
+[package]
+name = "jolt-physics"
+description = "Rigid body, soft body, character and vehicle simulation for the Rust port of Jolt Physics (Jolt/Physics, Jolt/Skeleton)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+double-precision = ["jolt-core/double-precision", "jolt-geometry/double-precision"]
+cross-platform-deterministic = ["jolt-core/cross-platform-deterministic", "jolt-geometry/cross-platform-deterministic"]
+# JPH_DEBUG_RENDERER
+debug-renderer = []
+profiler = ["jolt-core/profiler"]
+
+[dependencies]
+jolt-core.workspace = true
+jolt-geometry.workspace = true
+
+[dev-dependencies]
+jolt-test-utils.workspace = true
+
+[lints]
+workspace = true

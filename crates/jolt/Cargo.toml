@@ -1,0 +1,25 @@
+[package]
+name = "jolt"
+description = "Rust port of the Jolt Physics library"
+readme = "../../.github/README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+double-precision = ["jolt-physics/double-precision"]
+cross-platform-deterministic = ["jolt-physics/cross-platform-deterministic"]
+debug-renderer = ["jolt-physics/debug-renderer"]
+profiler = ["jolt-physics/profiler"]
+
+[dependencies]
+jolt-core.workspace = true
+jolt-geometry.workspace = true
+jolt-physics.workspace = true
+
+[lints]
+workspace = true
