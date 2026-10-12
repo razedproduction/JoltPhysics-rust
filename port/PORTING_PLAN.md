@@ -93,6 +93,14 @@ Types keep their C++ names (`Vec3`, `BodyID`, `PhysicsSystem`), except enums, wh
 | `EMotionType` etc. | `MotionType` (enum `E` prefix dropped) |
 | `Vec3::sReplicate(v)` | `Vec3::replicate(v)` |
 | `GetX()/SetX()` | `x()/set_x()` |
+| `Hash<T>` functor | trait `JoltHash::jolt_hash()` (avoids clash with `std::hash::Hash`) |
+| `HashCombineArgs(...)`, `JPH_MAKE_HASHABLE(T, ...)` | `hash_combine_args!(...)`, `make_hashable!(T, field, ...)` |
+| `HashBytes(p, n, seed)` / `HashString(s, seed)` | `hash_bytes(&[u8])` + `hash_bytes_with_seed`, `hash_string` + `hash_string_with_seed` |
+| `Color::sRed`, `Color(uint32)`, `Color(c, alpha)`, `GetUInt32()`, `sGetDistinctColor` | `Color::RED`, `Color::from_u32`, `Color::with_alpha`, `uint32()`, `distinct_color` |
+| `StringFormat(fmt, ...)` | `string_format!` (Rust `format!` syntax) |
+| `StringToVector(s, out, delim, clear)` / `VectorToString(v, out, delim)` | `string_to_vector(s, delim) -> Vec<String>` / `vector_to_string(v, delim) -> String` |
+| `Result<T>` | `jolt_core::Result<T>` = `std::result::Result<T, JoltError>`; empty state = `Option<Result<T>>` |
+| `JPH_SCOPE_EXIT(f)` | `scope_exit!(f)` |
 
 ## 4. Slices and status
 
@@ -102,7 +110,7 @@ Leaves first; each slice = Rust code + its ported tests, green before moving on.
 
 | # | Slice | C++ sources | Depends on | Tests | Ported | Diff-tested | Notes |
 |---|---|---|---|---|---|---|---|
-| 1 | Core basics: `HashCombine`, `Color`, `StringTools`, `Result`, `NonCopyable`, `ScopeExit` | Core/* | — | ☐ | ☐ | ☐ | `HashBytes` = FNV-1a 64, must match bit-exactly |
+| 1 | Core basics: `HashCombine`, `Color`, `StringTools`, `Result`, `NonCopyable`, `ScopeExit` | Core/* | — | ☑ | ☑ | ☐ | 14/14 tests. `NonCopyable` N/A (Rust moves); `Color::to_vec4` deferred to slice 4 |
 | 2 | Sorting & containers: `InsertionSort`, `QuickSort`, `BinaryHeap`, `StaticArray`, `HashTable`, `UnorderedMap/Set`, `LinearCurve` | Core/* | 1 | ☐ | ☐ | ☐ | `ArrayTest`/`STLLocalAllocatorTest` mostly N/A (Vec) |
 | 3 | Math scalar: `Math.h`, `HalfFloat`, `Float2/3/4`, `Double3`, `Trigonometry`, `FindRoot` | Math/* | 1 | ☐ | ☐ | ☐ | |
 | 4 | Vectors: `Vec3`, `Vec4`, `UVec4`, `BVec16`, `DVec3`, `Swizzle` | Math/* | 3 | ☐ | ☐ | ☐ | W = Z invariant in `Vec3` |
