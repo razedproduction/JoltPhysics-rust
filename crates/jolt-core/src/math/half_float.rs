@@ -1,8 +1,9 @@
 //! Port of `Jolt/Math/HalfFloat.h` (C++ namespace `HalfFloatConversion` is this module).
 //!
-//! Only the float -> half float direction is ported in slice 3. `ToFloat` / `ToFloatFallback` convert 4 half floats
-//! at once (`UVec4` -> `Vec4`) and follow in slice 4. The F16C intrinsic path of `FromFloat` is not ported: the
-//! fallback produces the same bits (`UnitTests/Math/HalfFloatTests.cpp` checks this, see `tests/half_float.rs`).
+//! The F16C intrinsic paths of `FromFloat` / `ToFloat` are not ported: the fallbacks produce the same bits
+//! (`UnitTests/Math/HalfFloatTests.cpp` checks this, see `tests/half_float.rs`).
+
+use super::{UVec4, Vec4};
 
 pub type HalfFloat = u16;
 
@@ -131,4 +132,53 @@ pub fn from_float_fallback(v: f32, rounding_mode: RoundingMode) -> HalfFloat {
 #[inline]
 pub fn from_float(v: f32, rounding_mode: RoundingMode) -> HalfFloat {
     from_float_fallback(v, rounding_mode)
+}
+
+/// Convert 4 half floats (lower 64 bits) to floats, fallback version when no intrinsics available
+#[inline]
+pub fn to_float_fallback(value: UVec4) -> Vec4 {
+    // Unpack half floats to 4 uint32's
+    let value = value.expand4_uint16_lo();
+
+    // Normal half float path, extract the exponent and mantissa, shift them into place and update the exponent bias
+    let exponent_mantissa = UVec4::and(value, UVec4::replicate(HALF_FLT_EXPONENT_AND_MANTISSA_MASK as u32))
+        .logical_shift_left::<{ (FLOAT_EXPONENT_POS - HALF_FLT_EXPONENT_POS) as u32 }>()
+        + UVec4::replicate(((FLOAT_EXPONENT_BIAS - HALF_FLT_EXPONENT_BIAS) << FLOAT_EXPONENT_POS) as u32);
+
+    // Denormalized half float path, renormalize the float
+    let exponent_mantissa_denormalized = ((exponent_mantissa + UVec4::replicate((1 << FLOAT_EXPONENT_POS) as u32))
+        .reinterpret_as_float()
+        - UVec4::replicate(((FLOAT_EXPONENT_BIAS - HALF_FLT_EXPONENT_BIAS + 1) << FLOAT_EXPONENT_POS) as u32)
+            .reinterpret_as_float())
+    .reinterpret_as_int();
+
+    // NaN / INF path, set all exponent bits
+    let exponent_mantissa_nan_inf =
+        UVec4::or(exponent_mantissa, UVec4::replicate((FLOAT_EXPONENT_MASK << FLOAT_EXPONENT_POS) as u32));
+
+    // Get the exponent to determine which of the paths we should take
+    let exponent_mask = UVec4::replicate((HALF_FLT_EXPONENT_MASK << HALF_FLT_EXPONENT_POS) as u32);
+    let exponent = UVec4::and(value, exponent_mask);
+    let is_denormalized = UVec4::equals(exponent, UVec4::zero());
+    let is_nan_inf = UVec4::equals(exponent, exponent_mask);
+
+    // Select the correct result
+    let result_exponent_mantissa = UVec4::select(
+        UVec4::select(exponent_mantissa, exponent_mantissa_nan_inf, is_nan_inf),
+        exponent_mantissa_denormalized,
+        is_denormalized,
+    );
+
+    // Extract the sign bit and shift it to the left
+    let sign = UVec4::and(value, UVec4::replicate((1 << HALF_FLT_SIGN_POS) as u32))
+        .logical_shift_left::<{ (FLOAT_SIGN_POS - HALF_FLT_SIGN_POS) as u32 }>();
+
+    // Construct the float
+    UVec4::or(sign, result_exponent_mantissa).reinterpret_as_float()
+}
+
+/// Convert 4 half floats (lower 64 bits) to floats
+#[inline]
+pub fn to_float(value: UVec4) -> Vec4 {
+    to_float_fallback(value)
 }

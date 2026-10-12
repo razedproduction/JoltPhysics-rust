@@ -1,14 +1,74 @@
 //! Port of UnitTests/Math/HalfFloatTests.cpp
 //!
-//! `TestHalfFloatToFloat` and the half float -> float halves of `TestHalfFloatINF` / `TestHalfFloatNaN` need
-//! `UVec4` / `Vec4` and follow in slice 4. `TestFloatToHalfFloat` compares the fallback with the F16C instruction
-//! (`_mm_cvtps_ph`), so it only checks something on x86 CPUs that have F16C.
+//! `TestHalfFloatToFloat` and `TestFloatToHalfFloat` compare the fallbacks with the F16C instructions
+//! (`_mm_cvtph_ps` / `_mm_cvtps_ph`), so they only check something on x86 CPUs that have F16C.
 
 use jolt_core::math::half_float::{
     FLOAT_EXPONENT_BIAS, FLOAT_EXPONENT_MASK, FLOAT_EXPONENT_POS, FLOAT_MANTISSA_BITS, HALF_FLT_EXPONENT_BIAS,
     HALF_FLT_INF, HALF_FLT_INF_NEGATIVE, HALF_FLT_MANTISSA_BITS, HALF_FLT_NANQ, HALF_FLT_NANQ_NEGATIVE, HalfFloat,
-    RoundingMode, from_float, from_float_fallback,
+    RoundingMode, from_float, from_float_fallback, to_float, to_float_fallback,
 };
+use jolt_core::math::{UVec4, Vec4};
+
+/// Hardware conversion (C++ `ToFloat` when `JPH_USE_F16C` is defined), `None` if the CPU has no F16C
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn to_float_f16c(value: UVec4) -> Option<Vec4> {
+    #[cfg(target_arch = "x86")]
+    use std::arch::x86::*;
+    #[cfg(target_arch = "x86_64")]
+    use std::arch::x86_64::*;
+
+    #[target_feature(enable = "f16c")]
+    fn convert(value: UVec4) -> Vec4 {
+        let v = value.to_array();
+        let half = _mm_set_epi32(v[3] as i32, v[2] as i32, v[1] as i32, v[0] as i32);
+        let mut out = [0.0f32; 4];
+        // SAFETY: `out` has room for the 4 floats that _mm_storeu_ps writes (no alignment needed)
+        unsafe { _mm_storeu_ps(out.as_mut_ptr(), _mm_cvtph_ps(half)) };
+        Vec4::from_array(out)
+    }
+
+    if is_x86_feature_detected!("f16c") {
+        // SAFETY: the CPU supports F16C (checked above)
+        Some(unsafe { convert(value) })
+    } else {
+        None
+    }
+}
+
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+fn to_float_f16c(value: UVec4) -> Option<Vec4> {
+    // C++ ToFloat has no NEON path, so it is the fallback there as well
+    Some(to_float(value))
+}
+
+#[test]
+fn test_half_float_to_float() {
+    if to_float_f16c(UVec4::zero()).is_none() {
+        eprintln!("CPU has no F16C, skipping test_half_float_to_float");
+        return;
+    }
+
+    // Check all half float values, 4 at a time, skip NaN's and INF
+    for v in (0u32..0x7c00).step_by(2) {
+        // Test value, next value and negative variants of both
+        let half_float = UVec4::new(v | ((v + 1) << 16), (v | 0x8000) | (((v + 1) | 0x8000) << 16), 0, 0);
+
+        // Compare hardware intrinsic version with fallback version
+        let flt1 = to_float_f16c(half_float).unwrap();
+        let flt2 = to_float_fallback(half_float);
+
+        let flt1_as_int = flt1.reinterpret_as_int();
+        let flt2_as_int = flt2.reinterpret_as_int();
+        // Not using assert_eq! with formatting per value to keep the loop fast
+        if flt1_as_int != flt2_as_int {
+            panic!("{v:#x}: intrinsic {flt1_as_int} != fallback {flt2_as_int}");
+        }
+        if to_float(half_float).reinterpret_as_int() != flt2_as_int {
+            panic!("{v:#x}: to_float differs from fallback");
+        }
+    }
+}
 
 /// Hardware conversion (C++ `FromFloat` when `JPH_USE_F16C` is defined), `None` if the CPU has no F16C
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -100,7 +160,10 @@ fn test_half_float_inf() {
     assert_eq!(from_float_fallback(f32::from_bits(0x7f800000), RoundingMode::RoundToNearest), HALF_FLT_INF);
     assert_eq!(from_float_fallback(f32::from_bits(0xff800000), RoundingMode::RoundToNearest), HALF_FLT_INF_NEGATIVE);
 
-    // Half float -> float: needs UVec4 / Vec4, follows in slice 4
+    // Half float -> float
+    let half_float = UVec4::new(HALF_FLT_INF as u32 | ((HALF_FLT_INF_NEGATIVE as u32) << 16), 0, 0, 0);
+    let flt = to_float_fallback(half_float).reinterpret_as_int();
+    assert_eq!(flt, UVec4::new(0x7f800000, 0xff800000, 0, 0));
 }
 
 #[test]
@@ -109,5 +172,8 @@ fn test_half_float_na_n() {
     assert_eq!(from_float_fallback(f32::from_bits(0x7fc00000), RoundingMode::RoundToNearest), HALF_FLT_NANQ);
     assert_eq!(from_float_fallback(f32::from_bits(0xffc00000), RoundingMode::RoundToNearest), HALF_FLT_NANQ_NEGATIVE);
 
-    // Half float -> float: needs UVec4 / Vec4, follows in slice 4
+    // Half float -> float
+    let half_float = UVec4::new(HALF_FLT_NANQ as u32 | ((HALF_FLT_NANQ_NEGATIVE as u32) << 16), 0, 0, 0);
+    let flt = to_float_fallback(half_float).reinterpret_as_int();
+    assert_eq!(flt, UVec4::new(0x7fc00000, 0xffc00000, 0, 0));
 }

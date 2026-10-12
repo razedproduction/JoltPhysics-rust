@@ -24,7 +24,7 @@ maintainer decides to fix them.
 | `HashTable::rehash` | on a never-allocated table writes through a null control pointer | no-op | memory safety | planned |
 | `UnorderedMap::try_emplace` | constructs the value only when inserted | value is passed (and dropped if not inserted) | no variadic in-place construction | planned |
 | `StaticArray` | own union buffer, `uint` sizes | wrapper around `arrayvec::ArrayVec`, `usize` sizes, derefs to a slice | no `unsafe` | planned |
-| `BVec16` | SSE / NEON / scalar implementations | scalar implementation only, subset needed by `HashTable` (rest in slice 4) | all implementations give the same `GetTrues()` | planned |
+| `BVec16` | SSE / NEON / scalar implementations; the scalar `sEquals` sets only the highest bit of an equal byte | scalar implementation only; `equals` sets all bits of an equal byte like `_mm_cmpeq_epi8` (SSE) | all implementations give the same `GetTrues()` / `TestAnyTrue()` / `TestAllTrue()` | planned |
 | `LinearCurve` | `ObjectStream` serializable, `SaveBinaryState` / `RestoreBinaryState` | serialization not ported; binary state follows with `StreamIn/Out` (slice 11) | reflection not ported; streams not yet ported | planned |
 | `UnitTestRandom` in tests | `std::shuffle` (implementation defined) | Fisher-Yates over the ported `mt19937` | `std::shuffle` differs between standard libraries anyway | planned |
 | `Float2`/`Float3`/`Float4`/`Double3` | default constructor leaves them uninitialized; `operator []` takes `int`, only `JPH_ASSERT`s the range | `Default` = all zero; `Index<usize>` panics when out of range | no uninitialized values; memory safety | planned |
@@ -35,7 +35,13 @@ maintainer decides to fix them.
 | `HalfFloatConversion` rounding mode | template parameter `int RoundingMode` | `RoundingMode` enum argument | no stable const generics over enums | planned |
 | `FindRoot` | out-params untouched when there is no root | returns `(count, x1, x2)` with zeros when there is no root | out-params become return values | planned |
 | `GetNextPowerOf2` | undefined behavior (`1 << 32`) for values > 2^31 | panics in debug builds (shift overflow), wraps in release | Rust shift semantics | planned |
-| `Trigonometry.h` / `HalfFloat.h` (partial) | `Sin`, `Cos`, `Tan`, `ASin`, `ACos`, `ATan`, `ATan2`, `ToFloat`, `ToFloatFallback` | not yet ported | built on `Vec4`/`UVec4`, follow in slice 4 | planned |
+| `Vec3`/`Vec4`/`UVec4`/`DVec3` implementation | SSE / AVX / NEON / RVV / scalar implementations selected at compile time | one scalar implementation (no `std::arch` backends yet); IEEE add/sub/mul/div/sqrt give the same bits as SIMD and horizontal sums keep the vectorized bracketing | correctness first, SIMD later behind `cfg` with bit-identical results | planned |
+| Vector edge cases where the C++ scalar fallback differs from SSE | `std::min`/`std::max` (`b < a ? b : a`); `abs`; `uint32(float)` in `ToInt` (UB for negative / large values); `(float)uint32` in `UVec4::ToFloat`; `DVec3::Dot` summed as `0 + x + y + z` | follows the x86-64 SSE/AVX build (the platform of the cross platform deterministic reference): `min`/`max` like `_mm_min_ps`/`_mm_max_ps` (`a < b ? a : b`, differs for NaN and +0/-0); `abs` = `max(0 - v, v)` (keeps -0); `to_int` like `_mm_cvttps_epi32` (signed truncation, out of range / NaN -> 0x80000000); `UVec4::to_float` converts signed (`_mm_cvtepi32_ps`); `DVec3::dot` = `(x + y) + z` like all SIMD paths | bit-identical with the reference build; only NaN, +0/-0 and out of range inputs are affected (NEON differs from SSE there too) | planned |
+| `Vec3` / `DVec3` W component | W = Z only maintained with `JPH_FLOATING_POINT_EXCEPTIONS_ENABLED` (otherwise e.g. `sLoadFloat3Unsafe` loads garbage into W) | W = Z always; `load_float3_unsafe` / `load_double3_unsafe` read only 3 values | no reads past the end of a `Float3`; X, Y, Z unaffected | planned |
+| `Vec4::Tan` / `Vec4::ATan` | add `FLT_MIN` to the divisor when `JPH_FLOATING_POINT_EXCEPTIONS_ENABLED` (MSVC Debug/Release builds) | never added (like GCC/Clang and MSVC Distribution builds) | Rust has no FP exceptions; only changes results for divisors below ~1e-31 | planned |
+| `sGatherFloat4<Scale>` / `sGatherInt4<Scale>` | any byte `Scale`, raw pointer base | `SCALE` must be a multiple of 4, base is a slice (bounds checked) | memory safety | planned |
+| `HalfFloatConversion::ToFloat` | F16C `_mm_cvtph_ps` when `JPH_USE_F16C` | always `ToFloatFallback` | same bits (verified against `_mm_cvtph_ps` in `test_half_float_to_float`) | planned |
+| `Vec3::sRandom` / `std::uniform_real_distribution` in tests | template over any UniformRandomBitGenerator; the distribution algorithm is implementation defined | trait `RandomGenerator`; tests use `UnitTestRandom::uniform_f32` (libstdc++ algorithm) and draw function arguments left to right | Rust has no std random distributions | planned |
 
 ## Unported tests
 
@@ -43,8 +49,6 @@ maintainer decides to fix them.
 |---|---|
 | `UnitTests/Core/ArrayTest.cpp` (all) | `Array<T>` is `Vec<T>` (see Containers) |
 | `UnitTests/Core/STLLocalAllocatorTest.cpp` (all) | allocators not ported (see Memory) |
-| `UnitTests/Math/HalfFloatTests.cpp` `TestHalfFloatToFloat` | needs `UVec4`/`Vec4` (`ToFloat`), waits for slice 4 |
-| `UnitTests/Math/HalfFloatTests.cpp` `TestHalfFloatINF`, `TestHalfFloatNaN` (half -> float checks) | ported partially: the float -> half checks run, the `ToFloatFallback` checks need `UVec4`, wait for slice 4 |
 
 ## Bugs found in the original
 

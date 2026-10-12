@@ -2,6 +2,8 @@
 
 use std::ops::{Index, IndexMut, Mul};
 
+use crate::math::Vec4;
+
 /// Class that holds an RGBA color with 8-bits per component
 ///
 /// The C++ union with a `uint32` member is replaced by [`Color::from_u32`] / [`Color::uint32`], which use the same
@@ -49,6 +51,12 @@ impl Color {
     #[inline]
     pub const fn uint32(self) -> u32 {
         u32::from_ne_bytes([self.r, self.g, self.b, self.a])
+    }
+
+    /// Convert to Vec4 with range [0, 1]
+    #[inline]
+    pub fn to_vec4(self) -> Vec4 {
+        Vec4::new(self.r as f32, self.g as f32, self.b as f32, self.a as f32) / 255.0
     }
 
     /// Get grayscale intensity of color
@@ -206,6 +214,11 @@ mod tests {
         assert_eq!(Color::from_u32(c.uint32()), c);
         assert_eq!(c.uint32().to_ne_bytes(), [1, 2, 3, 4]);
         assert_eq!(std::mem::size_of::<Color>(), 4);
+    }
+
+    #[test]
+    fn to_vec4() {
+        assert_eq!(Color::new(0, 51, 255, 102).to_vec4(), Vec4::new(0.0, 0.2, 1.0, 0.4));
     }
 
     #[test]

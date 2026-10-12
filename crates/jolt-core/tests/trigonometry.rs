@@ -1,6 +1,6 @@
 //! Port of UnitTests/Math/TrigonometryTests.cpp
 
-use jolt_core::math::{JPH_PI, acos_approximate};
+use jolt_core::math::{JPH_PI, Vec4, acos, acos_approximate, asin, atan, atan2, cos, sin, tan};
 use jolt_test_utils::check_approx_equal_f32;
 
 #[test]
@@ -18,4 +18,21 @@ fn test_a_cos_approximate() {
     assert_eq!(acos_approximate(1.0e-12), JPH_PI / 2.0);
     assert_eq!(acos_approximate(-1.0e-12), JPH_PI / 2.0);
     assert_eq!(acos_approximate(-1.0), JPH_PI);
+}
+
+#[test]
+fn test_scalar_functions_use_vec4_lane0() {
+    // Not in the C++ tests: the scalar functions evaluate lane 0 of the Vec4 implementations
+    for i in -100..=100 {
+        let x = i as f32 * 0.0731;
+        let (s, c) = Vec4::replicate(x).sin_cos();
+        assert_eq!(sin(x).to_bits(), s.x().to_bits());
+        assert_eq!(cos(x).to_bits(), c.x().to_bits());
+        assert_eq!(tan(x).to_bits(), Vec4::replicate(x).tan().x().to_bits());
+        assert_eq!(asin(x).to_bits(), Vec4::replicate(x).asin().x().to_bits());
+        assert_eq!(acos(x).to_bits(), Vec4::replicate(x).acos().x().to_bits());
+        assert_eq!(atan(x).to_bits(), Vec4::replicate(x).atan().x().to_bits());
+        assert_eq!(atan2(x, 0.5).to_bits(), Vec4::atan2(Vec4::replicate(x), Vec4::replicate(0.5)).x().to_bits());
+        check_approx_equal_f32(sin(x), x.sin(), 1.0e-6);
+    }
 }
