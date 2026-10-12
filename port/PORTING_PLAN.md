@@ -101,6 +101,15 @@ Types keep their C++ names (`Vec3`, `BodyID`, `PhysicsSystem`), except enums, wh
 | `StringToVector(s, out, delim, clear)` / `VectorToString(v, out, delim)` | `string_to_vector(s, delim) -> Vec<String>` / `vector_to_string(v, delim) -> String` |
 | `Result<T>` | `jolt_core::Result<T>` = `std::result::Result<T, JoltError>`; empty state = `Option<Result<T>>` |
 | `JPH_SCOPE_EXIT(f)` | `scope_exit!(f)` |
+| `Math.h` free functions | `jolt_core::math::*` (in `math/mod.rs`, no `math::math`) |
+| `JPH_PI`, `cLargeFloat` | `math::JPH_PI`, `math::LARGE_FLOAT` |
+| `std::min` / `std::max` (via `Core.h`) | `math::min` / `math::max` (C++ semantics: `b < a ? b : a`, no NaN special case like `f32::min`) |
+| `Sqrt(float)` / `Sqrt(double)` overloads | `math::sqrt<T: Float>` (trait `Float` for `f32`/`f64`) |
+| `GetNextPowerOf2`, `IsPowerOf2`, `CountBits` | `get_next_power_of_2`, `is_power_of_2`, `count_bits` |
+| `BitCast<uint32>(f)` / `BitCast<float>(u)` | `f.to_bits()` / `f32::from_bits(u)` |
+| `FindRoot(a, b, c, outX1, outX2) -> int` | `find_root(a, b, c) -> (i32, x1, x2)` |
+| `HalfFloatConversion::FromFloat<ROUND_TO_NEAREST>(v)` | `half_float::from_float(v, RoundingMode::RoundToNearest)` (template arg -> argument) |
+| `ACosApproximate` | `acos_approximate` (C++ `ACos` -> `acos`, `ATan2` -> `atan2`, ...) |
 | `InsertionSort(b, e[, cmp])`, `QuickSort(b, e[, cmp])` | `insertion_sort(&mut [T])` / `insertion_sort_by(&mut [T], less)`, `quick_sort` / `quick_sort_by` (`less(a, b) -> bool`, not `Ordering`) |
 | `BinaryHeapPush(b, e, pred)` / `BinaryHeapPop(b, e, pred)` | `binary_heap_push(&mut [T], pred)` / `binary_heap_pop(&mut [T], pred)` |
 | `HashTable` / `UnorderedMap` / `UnorderedSet` template params `Hash`, `KeyEqual` | trait `KeyHasher<K>` (default `JoltHasher` = `JoltHash`), always `PartialEq`; `UnorderedMap<K, V, H>` / `UnorderedSet<K, H>` are type aliases of `HashTable` |
@@ -124,7 +133,7 @@ Leaves first; each slice = Rust code + its ported tests, green before moving on.
 |---|---|---|---|---|---|---|---|
 | 1 | Core basics: `HashCombine`, `Color`, `StringTools`, `Result`, `NonCopyable`, `ScopeExit` | Core/* | — | ☑ | ☑ | ☐ | 14/14 tests. `NonCopyable` N/A (Rust moves); `Color::to_vec4` deferred to slice 4 |
 | 2 | Sorting & containers: `InsertionSort`, `QuickSort`, `BinaryHeap`, `StaticArray`, `HashTable`, `UnorderedMap/Set`, `LinearCurve` | Core/* | 1 | ☑ | ☑ | ☐ | 27/27 tests. Scalar `BVec16` subset (`math::bvec16`) pulled forward for `HashTable`, rest in slice 4; `StaticArray` over `arrayvec`; `LinearCurve` binary state waits for slice 11. `ArrayTest`/`STLLocalAllocatorTest` N/A (Vec) |
-| 3 | Math scalar: `Math.h`, `HalfFloat`, `Float2/3/4`, `Double3`, `Trigonometry`, `FindRoot` | Math/* | 1 | ☐ | ☐ | ☐ | |
+| 3 | Math scalar: `Math.h`, `HalfFloat`, `Float2/3/4`, `Double3`, `Trigonometry`, `FindRoot` | Math/* | 1 | ☑ | ☑ | ☐ | 13/14 tests (`TestHalfFloatToFloat` + half->float checks of INF/NaN tests wait for slice 4). `Math.h` lives in `math` (mod.rs); `hash_table` now calls `count_trailing_zeros`/`count_leading_zeros`/`get_next_power_of_2`. Deferred to slice 4 (need `Vec4`/`UVec4`): `HalfFloatConversion::ToFloat`/`ToFloatFallback`, `Sin`/`Cos`/`Tan`/`ASin`/`ACos`/`ATan`/`ATan2` (only `ACosApproximate` ported) |
 | 4 | Vectors: `Vec3`, `Vec4`, `UVec4`, `BVec16`, `DVec3`, `Swizzle` | Math/* | 3 | ☐ | ☐ | ☐ | W = Z invariant in `Vec3` |
 | 5 | Matrices: `Mat44`, `DMat44`, `Quat`, `Matrix`, `Vector`, `DynMatrix`, `GaussianElimination`, `EigenValueSymmetric`, `Real` | Math/* | 4 | ☐ | ☐ | ☐ | **M1** |
 | 6 | Geometry primitives: `AABox`, `OrientedBox`, `Plane`, `Sphere`, `Ellipse`, `Triangle`, `IndexedTriangle`, `Indexify`, `MortonCode`, `AABox4` | Geometry/* | 5 | ☐ | ☐ | ☐ | |

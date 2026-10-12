@@ -27,6 +27,15 @@ maintainer decides to fix them.
 | `BVec16` | SSE / NEON / scalar implementations | scalar implementation only, subset needed by `HashTable` (rest in slice 4) | all implementations give the same `GetTrues()` | planned |
 | `LinearCurve` | `ObjectStream` serializable, `SaveBinaryState` / `RestoreBinaryState` | serialization not ported; binary state follows with `StreamIn/Out` (slice 11) | reflection not ported; streams not yet ported | planned |
 | `UnitTestRandom` in tests | `std::shuffle` (implementation defined) | Fisher-Yates over the ported `mt19937` | `std::shuffle` differs between standard libraries anyway | planned |
+| `Float2`/`Float3`/`Float4`/`Double3` | default constructor leaves them uninitialized; `operator []` takes `int`, only `JPH_ASSERT`s the range | `Default` = all zero; `Index<usize>` panics when out of range | no uninitialized values; memory safety | planned |
+| `MulRSqrtApproximate` | `_mm_rsqrt_ss` / `vrsqrte_f32` / `vfrsqrt7` + Newton-Raphson unless `CROSS_PLATFORM_DETERMINISTIC` | always `inA / Sqrt(inB)` (the deterministic path) | determinism; scalar implementation first | planned |
+| `Sqrt` | `_mm_sqrt_ss` / `vsqrt_f32` / `fsqrt.s` | `f32::sqrt` / `f64::sqrt` | IEEE square root is correctly rounded, same bits | planned |
+| `CountTrailingZeros` / `CountLeadingZeros` / `CountBits` | per-compiler intrinsics | `u32::trailing_zeros` / `leading_zeros` / `count_ones` | identical results (32 for 0) | planned |
+| `HalfFloatConversion::FromFloat` | F16C `_mm_cvtps_ph` when `JPH_USE_F16C` | always `FromFloatFallback` | same bits (verified against `_mm_cvtps_ph` in `test_float_to_half_float`) | planned |
+| `HalfFloatConversion` rounding mode | template parameter `int RoundingMode` | `RoundingMode` enum argument | no stable const generics over enums | planned |
+| `FindRoot` | out-params untouched when there is no root | returns `(count, x1, x2)` with zeros when there is no root | out-params become return values | planned |
+| `GetNextPowerOf2` | undefined behavior (`1 << 32`) for values > 2^31 | panics in debug builds (shift overflow), wraps in release | Rust shift semantics | planned |
+| `Trigonometry.h` / `HalfFloat.h` (partial) | `Sin`, `Cos`, `Tan`, `ASin`, `ACos`, `ATan`, `ATan2`, `ToFloat`, `ToFloatFallback` | not yet ported | built on `Vec4`/`UVec4`, follow in slice 4 | planned |
 
 ## Unported tests
 
@@ -34,6 +43,8 @@ maintainer decides to fix them.
 |---|---|
 | `UnitTests/Core/ArrayTest.cpp` (all) | `Array<T>` is `Vec<T>` (see Containers) |
 | `UnitTests/Core/STLLocalAllocatorTest.cpp` (all) | allocators not ported (see Memory) |
+| `UnitTests/Math/HalfFloatTests.cpp` `TestHalfFloatToFloat` | needs `UVec4`/`Vec4` (`ToFloat`), waits for slice 4 |
+| `UnitTests/Math/HalfFloatTests.cpp` `TestHalfFloatINF`, `TestHalfFloatNaN` (half -> float checks) | ported partially: the float -> half checks run, the `ToFloatFallback` checks need `UVec4`, wait for slice 4 |
 
 ## Bugs found in the original
 
@@ -41,3 +52,5 @@ maintainer decides to fix them.
 |---|---|---|
 | `Core/HashCombine.h` `HashString` | `uint64(*c)` on a `char`: sign-extends bytes >= 0x80 where `char` is signed (x86, MSVC) but not where it is unsigned (ARM Linux), so non-ASCII strings hash differently per platform and differently from `HashBytes` | yes, using the signed (x86) behavior |
 | `Core/StringTools.cpp` `StringReplace` | never terminates for an empty search string | yes, plus a `debug_assert!` |
+| `Math/FindRoot.h` `FindRoot<double>` | calls `DifferenceOfProducts`, which only has a `float` overload, so the discriminant of a `double` equation is computed in `float` precision | yes (`Float::difference_of_products` for `f64` narrows to `f32`) |
+| `UnitTests/Math/MathTests.cpp` `TestIsPowerOf2` | loop checks `IsPowerOf2(uint64(1) << 1)` instead of `<< i` | yes |
