@@ -14,3 +14,7 @@
 *.dxil
 *.metallib
 /Assets/*.hair
+
+# Rust
+/target/
+**/*.rs.bk

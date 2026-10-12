@@ -16,3 +16,7 @@ gradlew text eol=lf
 *.tga binary
 *.bof binary
 *.bin binary
+# Rust sources: always LF so rustfmt output is identical on every platform
+*.rs text eol=lf
+*.toml text eol=lf
+Cargo.lock text eol=lf -diff
