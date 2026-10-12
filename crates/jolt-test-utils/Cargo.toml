@@ -10,6 +10,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+jolt-core.workspace = true
 
 [lints]
 workspace = true

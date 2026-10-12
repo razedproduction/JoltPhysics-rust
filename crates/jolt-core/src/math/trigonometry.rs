@@ -2,11 +2,42 @@
 //!
 //! Note that this file exists because std::sin etc. are not platform independent and will lead to non-deterministic
 //! simulation.
-//!
-//! `Sin`, `Cos`, `Tan`, `ASin`, `ACos`, `ATan` and `ATan2` evaluate lane 0 of the `Vec4` implementations
-//! (`Vec4::SinCos`, `Vec4::Tan`, ...) and are ported together with `Vec4` in slice 4.
 
-use super::{JPH_PI, min, sqrt};
+use super::{JPH_PI, Vec4, min, sqrt};
+
+/// Sine of x (input in radians)
+#[inline]
+pub fn sin(x: f32) -> f32 {
+    let (s, _c) = Vec4::replicate(x).sin_cos();
+    s.x()
+}
+
+/// Cosine of x (input in radians)
+#[inline]
+pub fn cos(x: f32) -> f32 {
+    let (_s, c) = Vec4::replicate(x).sin_cos();
+    c.x()
+}
+
+/// Tangent of x (input in radians)
+#[inline]
+pub fn tan(x: f32) -> f32 {
+    Vec4::replicate(x).tan().x()
+}
+
+/// Arc sine of x (returns value in the range [-PI / 2, PI / 2])
+/// Note that all input values will be clamped to the range [-1, 1] and this function will not return NaNs like std::asin
+#[inline]
+pub fn asin(x: f32) -> f32 {
+    Vec4::replicate(x).asin().x()
+}
+
+/// Arc cosine of x (returns value in the range [0, PI])
+/// Note that all input values will be clamped to the range [-1, 1] and this function will not return NaNs like std::acos
+#[inline]
+pub fn acos(x: f32) -> f32 {
+    Vec4::replicate(x).acos().x()
+}
 
 /// An approximation of ACos, max error is 4.2e-3 over the entire range [-1, 1], is approximately 2.5x faster than ACos
 #[inline]
@@ -26,4 +57,16 @@ pub fn acos_approximate(x: f32) -> f32 {
 
     // Our approximation is valid in the range [0, 1], extend it to the range [-1, 1]
     if x < 0.0 { JPH_PI - val } else { val }
+}
+
+/// Arc tangent of x (returns value in the range [-PI / 2, PI / 2])
+#[inline]
+pub fn atan(x: f32) -> f32 {
+    Vec4::replicate(x).atan().x()
+}
+
+/// Arc tangent of y / x using the signs of the arguments to determine the correct quadrant (returns value in the range [-PI, PI])
+#[inline]
+pub fn atan2(y: f32, x: f32) -> f32 {
+    Vec4::atan2(Vec4::replicate(y), Vec4::replicate(x)).x()
 }

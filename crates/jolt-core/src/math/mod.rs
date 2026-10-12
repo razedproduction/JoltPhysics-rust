@@ -7,21 +7,31 @@ use std::ops::{BitAnd, Mul, Sub};
 
 pub mod bvec16;
 pub mod double3;
+pub mod dvec3;
 pub mod find_root;
 pub mod float2;
 pub mod float3;
 pub mod float4;
 pub mod half_float;
+pub mod swizzle;
 pub mod trigonometry;
+pub mod uvec4;
+pub mod vec3;
+pub mod vec4;
 
 pub use bvec16::BVec16;
 pub use double3::Double3;
+pub use dvec3::DVec3;
 pub use find_root::find_root;
 pub use float2::Float2;
 pub use float3::{Float3, VertexList};
 pub use float4::Float4;
 pub use half_float::HalfFloat;
-pub use trigonometry::acos_approximate;
+pub use swizzle::{SWIZZLE_UNUSED, SWIZZLE_W, SWIZZLE_X, SWIZZLE_Y, SWIZZLE_Z};
+pub use trigonometry::{acos, acos_approximate, asin, atan, atan2, cos, sin, tan};
+pub use uvec4::UVec4;
+pub use vec3::Vec3;
+pub use vec4::Vec4;
 
 /// The constant \f$\pi\f$
 /// (C++ `3.14159265358979323846f`, the same `f32` as `std::f32::consts::PI`)
