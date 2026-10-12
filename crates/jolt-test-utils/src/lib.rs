@@ -13,9 +13,86 @@ pub fn check_approx_equal_f64(lhs: f64, rhs: f64, tolerance: f64) {
     assert!((rhs - lhs).abs() <= tolerance, "{lhs} != {rhs} (tolerance {tolerance})");
 }
 
+/// Port of `CHECK_APPROX_EQUAL(float, float)` with the default tolerance of `1.0e-6`.
+#[track_caller]
+pub fn check_approx_equal(lhs: f32, rhs: f32) {
+    check_approx_equal_f32(lhs, rhs, 1.0e-6);
+}
+
+/// Port of `UnitTestRandom` (`std::mt19937`, the 32 bit Mersenne Twister). Produces the same sequence as the C++
+/// standard library for the same seed.
+#[derive(Clone, Debug)]
+pub struct UnitTestRandom {
+    state: [u32; 624],
+    index: usize,
+}
+
+impl UnitTestRandom {
+    /// Seed used by a default constructed `std::mt19937`
+    pub const DEFAULT_SEED: u32 = 5489;
+
+    /// Construct with a seed (`std::mt19937(seed)`)
+    pub fn new(seed: u32) -> Self {
+        let mut state = [0u32; 624];
+        state[0] = seed;
+        for i in 1..624 {
+            state[i] = 1812433253u32.wrapping_mul(state[i - 1] ^ (state[i - 1] >> 30)).wrapping_add(i as u32);
+        }
+        Self { state, index: 624 }
+    }
+
+    /// Generate the next random number (`operator ()`)
+    pub fn next_u32(&mut self) -> u32 {
+        if self.index >= 624 {
+            for i in 0..624 {
+                let y = (self.state[i] & 0x8000_0000) | (self.state[(i + 1) % 624] & 0x7fff_ffff);
+                let mut v = self.state[(i + 397) % 624] ^ (y >> 1);
+                if y & 1 != 0 {
+                    v ^= 0x9908_b0df;
+                }
+                self.state[i] = v;
+            }
+            self.index = 0;
+        }
+
+        let mut y = self.state[self.index];
+        self.index += 1;
+        y ^= y >> 11;
+        y ^= (y << 7) & 0x9d2c_5680;
+        y ^= (y << 15) & 0xefc6_0000;
+        y ^= y >> 18;
+        y
+    }
+
+    /// Shuffle `slice` (`std::shuffle(begin, end, random)`). The algorithm of `std::shuffle` is implementation defined,
+    /// so this is a Fisher-Yates shuffle that does not reproduce any particular standard library.
+    pub fn shuffle<T>(&mut self, slice: &mut [T]) {
+        for i in (1..slice.len()).rev() {
+            let j = (self.next_u32() as u64 * (i as u64 + 1)) >> 32;
+            slice.swap(i, j as usize);
+        }
+    }
+}
+
+impl Default for UnitTestRandom {
+    fn default() -> Self {
+        Self::new(Self::DEFAULT_SEED)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mt19937_matches_std() {
+        // The C++ standard requires the 10000th invocation of a default constructed mt19937 to produce 4123659995
+        let mut random = UnitTestRandom::default();
+        for _ in 0..9999 {
+            random.next_u32();
+        }
+        assert_eq!(random.next_u32(), 4123659995);
+    }
 
     #[test]
     fn approx_equal_accepts_within_tolerance() {

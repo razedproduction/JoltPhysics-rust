@@ -15,6 +15,7 @@ jolt-core = { path = "crates/jolt-core" }
 jolt-geometry = { path = "crates/jolt-geometry" }
 jolt-physics = { path = "crates/jolt-physics" }
 jolt-test-utils = { path = "crates/jolt-test-utils" }
+arrayvec = "0.7"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"

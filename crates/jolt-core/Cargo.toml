@@ -18,6 +18,7 @@ cross-platform-deterministic = []
 profiler = []
 
 [dependencies]
+arrayvec.workspace = true
 
 [dev-dependencies]
 jolt-test-utils.workspace = true
