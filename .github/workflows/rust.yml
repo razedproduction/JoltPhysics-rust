@@ -1,0 +1,40 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+    paths: [ 'crates/**', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.github/workflows/rust.yml' ]
+  pull_request:
+    branches: [ master ]
+    paths: [ 'crates/**', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.github/workflows/rust.yml' ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo fmt --all --check
+    - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test ${{ matrix.os }} ${{ matrix.features }} ${{ matrix.profile }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        features: [ '', 'jolt/double-precision' ]
+        profile: [ dev, release ]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo test --workspace --profile ${{ matrix.profile }} --features "${{ matrix.features }}"
